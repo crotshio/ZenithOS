@@ -11,7 +11,7 @@ N="\e[0m"
 
 clear
 echo -e "${C}############################################${N}"
-echo -e "${C}       Z  E  N  I  T  H  O  S   Installer   ${N}"
+echo -e "${C}        Z  E  N  I  T  H  O  S    Installer    ${N}"
 echo -e "${C}############################################${N}"
 echo
 echo -e "${Y}Detected SSH-friendly mode.${N}"
@@ -33,7 +33,7 @@ sleep 1
 ### UEFI check ###
 if [[ ! -d /sys/firmware/efi/efivars ]]; then
     echo -e "${R}[ERROR] System is not in UEFI mode.${N}"
-    echo -e "${R}Enable EFI in VirtualBox → Settings → System → Enable EFI${N}"
+    echo -e "${R}Enable EFI in VirtualBox -> Settings -> System -> Enable EFI${N}"
     exit 1
 fi
 
@@ -42,9 +42,10 @@ echo -e "${G}[OK] UEFI environment detected.${N}"
 ### DISK PARTITIONING ###
 echo -e "${C}### Partitioning /dev/sda (GPT + EFI) ###${N}"
 
+# Wipe and create partitions
 sgdisk -Z /dev/sda
 sgdisk -n 1:0:+512M -t 1:ef00 /dev/sda
-sgdisk -n 2:0:0      -t 2:8300 /dev/sda
+sgdisk -n 2:0:0     -t 2:8300 /dev/sda
 
 echo -e "${G}[OK] Partitions created.${N}"
 
@@ -67,7 +68,8 @@ echo -e "${G}[OK] Partitions mounted.${N}"
 ### BASE INSTALL ###
 echo -e "${C}### Installing base system ###${N}"
 
-pacstrap -K /mnt base linux linux-firmware base-devel networkmanager nano
+# Added intel-ucode and amd-ucode for stability
+pacstrap -K /mnt base linux linux-firmware base-devel networkmanager nano intel-ucode amd-ucode
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
@@ -84,11 +86,11 @@ echo "[CHROOT] Configuring system..."
 
 # Time
 ln -sf /usr/share/zoneinfo/Europe/London /etc/localtime
-timedatectl set-ntp true
 hwclock --systohc
+# NOTE: timedatectl removed (cannot run in chroot)
 
 # Locale
-sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
+sed -i 's/^#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
 locale-gen
 echo "LANG=en_GB.UTF-8" > /etc/locale.conf
 
@@ -109,12 +111,14 @@ useradd -m ash
 echo "ash:zenith" | chpasswd
 usermod -aG wheel ash
 
-# Sudo
-sed -i 's/# %wheel/%wheel/' /etc/sudoers
+# Sudo permissions
+# Safely uncomment the wheel group line
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-# Desktop: KDE Plasma
+# Desktop: KDE Plasma 6
+# REMOVED: khotkeys (deprecated in Plasma 6)
 pacman -S --noconfirm plasma-desktop sddm dolphin konsole \
-    kde-gtk-config plasma-nm plasma-pa powerdevil khotkeys \
+    kde-gtk-config plasma-nm plasma-pa powerdevil \
     ark spectacle bluedevil gwenview
 
 systemctl enable sddm
